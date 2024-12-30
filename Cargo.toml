@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["api", "drv/*"]
+
+package.author = ["Kevin Ludwig <iam@valaphee.com>"]
+package.edition = "2024"
+
+[workspace.dependencies]
+acorn_api = { path = "api" }
+
+log = "0.4"
+zerocopy = { version = "0.8", features = ["derive"] }

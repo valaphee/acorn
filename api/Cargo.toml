@@ -1,0 +1,10 @@
+[package]
+name = "acorn_api"
+version = "0.1.0"
+author.sworkspace = true
+edition.workspace = true
+description = "Acorn"
+keywords = ["acorn"]
+
+[dependencies]
+thiserror = "2.0"

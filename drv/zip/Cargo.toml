@@ -1,0 +1,14 @@
+[package]
+name = "acorn_zip"
+version = "0.1.0"
+author.sworkspace = true
+edition.workspace = true
+description = "Acorn ZIP as file system driver"
+keywords = ["acorn", "filesystem", "zip"]
+categories = ["no-std", "parsing"]
+
+[dependencies]
+acorn_api = { workspace = true }
+
+log = { workspace = true }
+zerocopy = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "acorn_fat"
+version = "0.1.0"
+author.sworkspace = true
+edition.workspace = true
+description = "Acorn FAT file system driver"
+keywords = ["acorn", "filesystem", "fat"]
+categories = ["no-std", "parsing"]
+
+[dependencies]
+acorn_api = { workspace = true }
+
+log = { workspace = true }
+zerocopy = { workspace = true }
