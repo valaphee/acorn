@@ -1,4 +1,4 @@
-// Copyright 2024 Kevin Ludwig
+// Copyright 2025 Kevin Ludwig
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,34 +14,69 @@
 
 #![no_std]
 
-use acorn_api::{Error, FileDevice, Result};
-use zerocopy::little_endian::{U16, U32, U64};
+use core::fmt::Debug;
 
-pub struct FileSystem {}
+use acorn_api::{DirEntry, Error, FileDevice, Result};
+use zerocopy::{
+    Immutable, KnownLayout, TryFromBytes,
+    little_endian::{U16, U32, U64},
+};
 
-impl FileSystem {}
+pub struct FileSystem<D: FileDevice> {
+    device: D,
+}
 
-impl FileDevice for FileSystem {
-    fn stat(&self, index: u64) -> Result<()> {
+impl<D: FileDevice> FileSystem<D> {
+    pub fn new(device: D) -> Result<Self> {
+        // search for [EndOfCentralDirectoryRecord] starting from the end
+        let mut buffer = [0u8; 512];
+        let length = {
+            let buffer = DirEntry::try_mut_from_bytes(&mut buffer).unwrap();
+            device.stat(0, 0, buffer)?;
+            buffer.data_length
+        };
+        let mut offset = length.next_multiple_of(512);
+        let end_of_central_directory_record = loop {
+            offset = offset.saturating_sub(512);
+            device.read(0, offset, &mut buffer)?;
+            if let Some(end_of_central_directory_record) = buffer
+                .windows(size_of::<EndOfCentralDirectoryRecord>())
+                .rev()
+                .find_map(|window| EndOfCentralDirectoryRecord::try_ref_from_bytes(window).ok())
+            {
+                break end_of_central_directory_record;
+            }
+            if offset == 0 {
+                return Err(Error::Unimplemented);
+            }
+        };
+        Ok(Self { device })
+    }
+}
+
+impl<D: FileDevice> FileDevice for FileSystem<D> {
+    fn ctrl(&self, _index: u64, _buffer: &DirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn ctrl(&self, index: u64) -> Result<()> {
+    fn stat(&self, _index: u64, _offset: u64, _buffer: &mut DirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn read(&self, index: u64, offset: u64, buffer: &mut [u8]) -> Result<()> {
+    fn read(&self, _index: u64, _offset: u64, _buffer: &mut [u8]) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn write(&self, index: u64, offset: u64, buffer: &[u8]) -> Result<()> {
+    fn write(&self, _index: u64, _offset: u64, _buffer: &[u8]) -> Result<()> {
         Err(Error::Unimplemented)
     }
 }
 
 /// See §4.3.7
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
 struct LocalFileHeader {
-    signature: [u8; 4],
+    signature: LocalFileHeaderSignature,
     version: U16,
     flags: U16,
     compression_method: U16,
@@ -54,9 +89,15 @@ struct LocalFileHeader {
     extra_field_length: U16,
 }
 
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct LocalFileHeaderSignature(P, K, X03, X04);
+
 /// See §4.3.12
-struct CentralDirectoryFileHeader {
-    signature: [u8; 4],
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct CentralDirectoryHeader {
+    signature: CentralDirectoryHeaderSignature,
     version_used: U16,
     version: U16,
     flags: U16,
@@ -75,31 +116,49 @@ struct CentralDirectoryFileHeader {
     local_header_offset: U32,
 }
 
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct CentralDirectoryHeaderSignature(P, K, X01, X02);
+
 /// See §4.3.14
-struct EndOfCentralDirectoryRecord64 {
-    signature: [u8; 4],
-    size: U64,
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct Zip64EndOfCentralDirectoryRecord {
+    signature: Zip64EndOfCentralDirectoryRecordSignature,
+    _size: U64,
     version_used: U16,
     version: U16,
     disk_current: U32,
     disk: U32,
     entries: U64,
     entries_total: U64,
-    size2: U64,
+    size: U64,
     offset: U64,
 }
 
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct Zip64EndOfCentralDirectoryRecordSignature(P, K, X06, X06);
+
 /// See §4.3.15
-struct EndOfCentralDirectoryLocator64 {
-    signature: [u8; 4],
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct Zip64EndOfCentralDirectoryLocator {
+    signature: Zip64EndOfCentralDirectoryLocatorSignature,
     disk: U32,
     offset: U64,
     disk_count: U32,
 }
 
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct Zip64EndOfCentralDirectoryLocatorSignature(P, K, X06, X07);
+
 /// See §4.3.16
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
 struct EndOfCentralDirectoryRecord {
-    signature: [u8; 4],
+    signature: EndOfCentralDirectoryRecordSignature,
     disk_current: U16,
     disk: U16,
     entries: U16,
@@ -107,4 +166,62 @@ struct EndOfCentralDirectoryRecord {
     size: U32,
     offset: U32,
     comment_length: U16,
+}
+
+#[repr(C)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+struct EndOfCentralDirectoryRecordSignature(P, K, X05, X06);
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum P {
+    P = b'P',
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum K {
+    K = b'K',
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X01 {
+    x01 = 0x01,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X02 {
+    x02 = 0x02,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X03 {
+    x03 = 0x03,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X04 {
+    x04 = 0x04,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X05 {
+    x05 = 0x05,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X06 {
+    x06 = 0x06,
+}
+
+#[repr(u8)]
+#[derive(Debug, TryFromBytes, KnownLayout, Immutable)]
+enum X07 {
+    x07 = 0x07,
 }

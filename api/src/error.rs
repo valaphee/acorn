@@ -1,4 +1,4 @@
-// Copyright 2024 Kevin Ludwig
+// Copyright 2025 Kevin Ludwig
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 pub enum Error {
     #[error("Not implemented")]
     Unimplemented,
-    #[error("Index out of bounds")]
-    Index,
-    #[error("Offset out of bounds")]
-    Offset,
     #[error("Read-only")]
     ReadOnly,
-    #[error("Inconsistency")]
-    Inconsistency,
+    #[error("File index out of bounds")]
+    FileIndex,
+    #[error("File offset out of bounds")]
+    FileOffset,
+    #[error("File system is inconsistent")]
+    FileSystemInconsistency,
 }
 
 pub type Result<T> = core::result::Result<T, Error>;

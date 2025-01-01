@@ -1,13 +1,13 @@
 [package]
-name = "acorn_api"
+name = "acorn_host"
 version = "0.1.0"
 author.sworkspace = true
 edition.workspace = true
-description = "Acorn API"
+description = "Acorn host adapter"
 keywords = ["acorn"]
 
 [dependencies]
-thiserror = "2.0"
+acorn_api = { workspace = true }
 
-zerocopy = { workspace = true }
+log = { workspace = true }
 chrono = { workspace = true }

@@ -10,3 +10,4 @@ acorn_api = { path = "api" }
 
 log = "0.4"
 zerocopy = { version = "0.8", features = ["derive"] }
+chrono = "0.4"

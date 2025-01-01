@@ -1,4 +1,4 @@
-// Copyright 2024 Kevin Ludwig
+// Copyright 2025 Kevin Ludwig
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,23 @@
 use crate::Result;
 
 pub trait InputDevice {
-    fn read(&self) -> Result<InputEvent>;
+    fn next(&self) -> Result<InputEvent>;
 }
 
 pub enum InputEvent {
-    Key { key: Key, value: bool },
-    Rel { axis: Axis, value: i16 },
-    Abs { axis: Axis, value: u16 },
+    Button {
+        time: u32,
+        button: Button,
+        value: bool,
+    },
+    Axis {
+        time: u32,
+        axis: Axis,
+        value: i16,
+    },
 }
 
-pub enum Key {
+pub enum Button {
     /// <kbd>`~</kbd> on a US keyboard. This is the <kbd>半角</kbd>/<kbd>全角</kbd>/<kbd>漢字</kbd> (hankaku/zenkaku/kanji) key on Japanese keyboards
     Backquote,
     /// Used for both the US <kbd>\\|</kbd> (on the 101-key layout) and also for the key located between the <kbd>"</kbd> and <kbd>Enter</kbd> keys on row C of the 102-, 104- and 106-key layouts. Labeled <kbd>#~</kbd> on a UK (102) keyboard.
@@ -377,59 +384,66 @@ pub enum Key {
     Hiragana,
     /// Use for dedicated <kbd>カタカナ</kbd> key found on some Japanese word processing keyboards.
     Katakana,
-    /// Left mouse button
     MouseLeft,
-    /// Middle mouse button
     MouseMiddle,
-    /// Right mouse button
     MouseRight,
-    /// A or cross button
     GamepadA,
-    /// B or circle button
     GamepadB,
-    /// X or square button
     GamepadX,
-    /// Y or triangle button
     GamepadY,
-    /// Directional pad top
     GamepadTop,
-    /// Directional pad bottom
     GamepadBottom,
-    /// Directional pad left
     GamepadLeft,
-    /// Directional pad right
     GamepadRight,
-    /// Upper-left shoulder button
     GamepadL1,
-    /// Upper-right shoulder button
     GamepadR1,
-    /// Lower-left shoulder button
     GamepadL2,
-    /// Lower-right shoulder button
     GamepadR2,
-    /// Left thumb button
-    GamepadThumbL,
-    /// Right thumb button
-    GamepadThumbR,
+    GamepadL3,
+    GamepadR3,
     /// This value code should be used when no other value given in this specification is appropriate.
-    Unidentified,
+    Unidentified = 0xFF,
 }
 
 pub enum Axis {
-    /// Horizontal movement
-    X,
-    /// Vertical movement
-    Y,
-    /// Wheel movement
-    Z,
-    /// Left stick horizontal movement
+    MouseX,
+    MouseY,
+    MouseZ,
+    TouchX,
+    TouchY,
+    TouchZ,
+    Touch1X,
+    Touch1Y,
+    Touch1Z,
+    Touch2X,
+    Touch2Y,
+    Touch2Z,
+    Touch3X,
+    Touch3Y,
+    Touch3Z,
+    Touch4X,
+    Touch4Y,
+    Touch4Z,
+    Touch5X,
+    Touch5Y,
+    Touch5Z,
+    Touch6X,
+    Touch6Y,
+    Touch6Z,
+    Touch7X,
+    Touch7Y,
+    Touch7Z,
+    Touch8X,
+    Touch8Y,
+    Touch8Z,
+    Touch9X,
+    Touch9Y,
+    Touch9Z,
     GamepadXL,
-    /// Right stick horizontal movement
     GamepadXR,
-    /// Left stick vertical movement
     GamepadYL,
-    /// Right stick vertical movement
     GamepadYR,
-    /// This value code should be used when no other value given in this specification is appropriate.
-    Unidentified,
+    GamepadZL,
+    GamepadZR,
+    Unidentified = 0xFF,
 }

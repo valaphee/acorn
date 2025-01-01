@@ -12,3 +12,4 @@ acorn_api = { workspace = true }
 
 log = { workspace = true }
 zerocopy = { workspace = true }
+chrono = { workspace = true }

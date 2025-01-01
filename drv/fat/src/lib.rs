@@ -1,4 +1,4 @@
-// Copyright 2024 Kevin Ludwig
+// Copyright 2025 Kevin Ludwig
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,7 @@
 #![no_std]
 
 use acorn_api::{BlockDevice, Error, FileDevice, Result};
-use zerocopy::{
-    FromBytes, IntoBytes, KnownLayout,
-    little_endian::{U16, U32},
-};
+use zerocopy::little_endian::{U16, U32};
 
 pub struct FileSystem<D: BlockDevice> {
     device: D,
@@ -27,26 +24,25 @@ pub struct FileSystem<D: BlockDevice> {
 impl<D: BlockDevice> FileSystem<D> {}
 
 impl<D: BlockDevice> FileDevice for FileSystem<D> {
-    fn stat(&self, index: u64) -> Result<()> {
+    fn ctrl(&self, _index: u64, _buffer: &acorn_api::DirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn ctrl(&self, index: u64) -> Result<()> {
+    fn stat(&self, _index: u64, _offset: u64, _buffer: &mut acorn_api::DirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn read(&self, index: u64, offset: u64, buffer: &mut [u8]) -> Result<()> {
+    fn read(&self, _index: u64, _offset: u64, _buffer: &mut [u8]) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn write(&self, index: u64, offset: u64, buffer: &[u8]) -> Result<()> {
+    fn write(&self, _index: u64, _offset: u64, _buffer: &[u8]) -> Result<()> {
         Err(Error::Unimplemented)
     }
 }
 
 /// See §3.2
 #[repr(C)]
-#[derive(Debug, FromBytes, IntoBytes, KnownLayout)]
 struct BootSector {
     bs_jmpboot: [u8; 3],
     bs_oemname: [u8; 8],
@@ -87,7 +83,6 @@ struct BootSector {
 
 /// See §6
 #[repr(C)]
-#[derive(Debug, FromBytes, IntoBytes, KnownLayout)]
 struct DirEntry {
     dir_name: [u8; 11],
     dir_attr: u8,
@@ -103,9 +98,57 @@ struct DirEntry {
     dir_filesize: U32,
 }
 
+impl DirEntry {
+    fn created_at(&self) -> Option<chrono::NaiveDateTime> {
+        let time = self.dir_crttime.get();
+        let date = self.dir_crtdate.get();
+        Some(chrono::NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(
+                i32::from(1980 + (date >> 9)),
+                u32::from((date >> 5) & 0xF),
+                u32::from(date & 0x1F),
+            )?,
+            chrono::NaiveTime::from_hms_milli_opt(
+                u32::from(time >> 11),
+                u32::from((time >> 5) & 0x1F),
+                u32::from((time & 0x1F) * 2 + u16::from(self.dir_crttimetenth / 100)),
+                u32::from(self.dir_crttimetenth % 100) * 10,
+            )?,
+        ))
+    }
+
+    fn last_accessed(&self) -> Option<chrono::NaiveDateTime> {
+        let date = self.dir_lstaccdate.get();
+        Some(chrono::NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(
+                i32::from(1980 + (date >> 9)),
+                u32::from((date >> 5) & 0xF),
+                u32::from(date & 0x1F),
+            )?,
+            chrono::NaiveTime::default(),
+        ))
+    }
+
+    fn last_modified(&self) -> Option<chrono::NaiveDateTime> {
+        let time = self.dir_wrttime.get();
+        let date = self.dir_wrtdate.get();
+        Some(chrono::NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(
+                i32::from(1980 + (date >> 9)),
+                u32::from((date >> 5) & 0xF),
+                u32::from(date & 0x1F),
+            )?,
+            chrono::NaiveTime::from_hms_opt(
+                u32::from(time >> 11),
+                u32::from((time >> 5) & 0x1F),
+                u32::from((time & 0x1F) * 2),
+            )?,
+        ))
+    }
+}
+
 /// See §7
 #[repr(C)]
-#[derive(Debug, FromBytes, IntoBytes, KnownLayout)]
 struct LongNameDirEntry {
     ldir_ord: u8,
     ldir_name1: [U16; 5],
