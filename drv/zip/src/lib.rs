@@ -16,29 +16,24 @@
 
 use core::fmt::Debug;
 
-use acorn_api::{DirEntry, Error, FileDevice, Result};
+use acorn_api::storage::{BlockStorage, DirEntry, Error, FileStorage, Result};
 use zerocopy::{
     Immutable, KnownLayout, TryFromBytes,
     little_endian::{U16, U32, U64},
 };
 
-pub struct FileSystem<D: FileDevice> {
-    device: D,
+pub struct FileSystem<S: BlockStorage> {
+    storage: S,
 }
 
-impl<D: FileDevice> FileSystem<D> {
-    pub fn new(device: D) -> Result<Self> {
+impl<S: BlockStorage> FileSystem<S> {
+    pub fn new(storage: S) -> Result<Self> {
         // search for [EndOfCentralDirectoryRecord] starting from the end
         let mut buffer = [0u8; 512];
-        let length = {
-            let buffer = DirEntry::try_mut_from_bytes(&mut buffer).unwrap();
-            device.stat(0, 0, buffer)?;
-            buffer.data_length
-        };
-        let mut offset = length.next_multiple_of(512);
+        let mut offset = 0u64.next_multiple_of(512);
         let end_of_central_directory_record = loop {
             offset = offset.saturating_sub(512);
-            device.read(0, offset, &mut buffer)?;
+            storage.read(offset, &mut buffer)?;
             if let Some(end_of_central_directory_record) = buffer
                 .windows(size_of::<EndOfCentralDirectoryRecord>())
                 .rev()
@@ -50,11 +45,11 @@ impl<D: FileDevice> FileSystem<D> {
                 return Err(Error::Unimplemented);
             }
         };
-        Ok(Self { device })
+        Ok(Self { storage })
     }
 }
 
-impl<D: FileDevice> FileDevice for FileSystem<D> {
+impl<S: BlockStorage> FileStorage for FileSystem<S> {
     fn ctrl(&self, _index: u64, _buffer: &DirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }

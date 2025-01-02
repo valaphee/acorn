@@ -16,9 +16,41 @@ use core::{fmt, str};
 
 use zerocopy::{FromBytes, Immutable, KnownLayout};
 
-use crate::Result;
+//==================================================================================================
+// Result
+//==================================================================================================
 
-pub trait FileDevice {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Not implemented")]
+    Unimplemented,
+    #[error("Read-only")]
+    ReadOnly,
+    #[error("File index out of bounds")]
+    FileIndex,
+    #[error("File offset out of bounds")]
+    FileOffset,
+    #[error("File system is inconsistent")]
+    FileSystemInconsistency,
+}
+
+pub type Result<T> = core::result::Result<T, Error>;
+
+//==================================================================================================
+// Block Storage
+//==================================================================================================
+
+pub trait BlockStorage {
+    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<()>;
+
+    fn write(&self, offset: u64, buffer: &[u8]) -> Result<()>;
+}
+
+//==================================================================================================
+// File Storage
+//==================================================================================================
+
+pub trait FileStorage {
     fn ctrl(&self, index: u64, buffer: &DirEntry) -> Result<()>;
 
     fn stat(&self, index: u64, offset: u64, buffer: &mut DirEntry) -> Result<()>;
@@ -56,5 +88,24 @@ impl fmt::Debug for DirEntry {
             .field("data_length", &self.data_length)
             .field("name", &self.name())
             .finish()
+    }
+}
+
+//==================================================================================================
+// File
+//==================================================================================================
+
+pub struct File<S: FileStorage> {
+    storage: S,
+    index: u64,
+}
+
+impl<S: FileStorage> BlockStorage for File<S> {
+    fn read(&self, offset: u64, buffer: &mut [u8]) -> Result<()> {
+        self.storage.read(self.index, offset, buffer)
+    }
+
+    fn write(&self, offset: u64, buffer: &[u8]) -> Result<()> {
+        self.storage.write(self.index, offset, buffer)
     }
 }

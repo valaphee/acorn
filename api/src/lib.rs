@@ -14,12 +14,4 @@
 
 #![no_std]
 
-mod block;
-mod error;
-mod file;
-mod input;
-
-pub use block::*;
-pub use error::*;
-pub use file::*;
-pub use input::*;
+pub mod storage;

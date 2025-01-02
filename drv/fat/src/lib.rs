@@ -14,21 +14,25 @@
 
 #![no_std]
 
-use acorn_api::{BlockDevice, Error, FileDevice, Result};
+use acorn_api::storage::{BlockStorage, DirEntry as AcornDirEntry, Error, FileStorage, Result};
 use zerocopy::little_endian::{U16, U32};
 
-pub struct FileSystem<D: BlockDevice> {
-    device: D,
+pub struct FileSystem<S: BlockStorage> {
+    storage: S,
 }
 
-impl<D: BlockDevice> FileSystem<D> {}
+impl<S: BlockStorage> FileSystem<S> {
+    pub fn new(storage: S) -> Result<Self> {
+        Ok(Self { storage })
+    }
+}
 
-impl<D: BlockDevice> FileDevice for FileSystem<D> {
-    fn ctrl(&self, _index: u64, _buffer: &acorn_api::DirEntry) -> Result<()> {
+impl<S: BlockStorage> FileStorage for FileSystem<S> {
+    fn ctrl(&self, _index: u64, _buffer: &AcornDirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
-    fn stat(&self, _index: u64, _offset: u64, _buffer: &mut acorn_api::DirEntry) -> Result<()> {
+    fn stat(&self, _index: u64, _offset: u64, _buffer: &mut AcornDirEntry) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
@@ -96,55 +100,6 @@ struct DirEntry {
     dir_wrtdate: U16,
     dir_fstcluslo: U16,
     dir_filesize: U32,
-}
-
-impl DirEntry {
-    fn created_at(&self) -> Option<chrono::NaiveDateTime> {
-        let time = self.dir_crttime.get();
-        let date = self.dir_crtdate.get();
-        Some(chrono::NaiveDateTime::new(
-            chrono::NaiveDate::from_ymd_opt(
-                i32::from(1980 + (date >> 9)),
-                u32::from((date >> 5) & 0xF),
-                u32::from(date & 0x1F),
-            )?,
-            chrono::NaiveTime::from_hms_milli_opt(
-                u32::from(time >> 11),
-                u32::from((time >> 5) & 0x1F),
-                u32::from((time & 0x1F) * 2 + u16::from(self.dir_crttimetenth / 100)),
-                u32::from(self.dir_crttimetenth % 100) * 10,
-            )?,
-        ))
-    }
-
-    fn last_accessed(&self) -> Option<chrono::NaiveDateTime> {
-        let date = self.dir_lstaccdate.get();
-        Some(chrono::NaiveDateTime::new(
-            chrono::NaiveDate::from_ymd_opt(
-                i32::from(1980 + (date >> 9)),
-                u32::from((date >> 5) & 0xF),
-                u32::from(date & 0x1F),
-            )?,
-            chrono::NaiveTime::default(),
-        ))
-    }
-
-    fn last_modified(&self) -> Option<chrono::NaiveDateTime> {
-        let time = self.dir_wrttime.get();
-        let date = self.dir_wrtdate.get();
-        Some(chrono::NaiveDateTime::new(
-            chrono::NaiveDate::from_ymd_opt(
-                i32::from(1980 + (date >> 9)),
-                u32::from((date >> 5) & 0xF),
-                u32::from(date & 0x1F),
-            )?,
-            chrono::NaiveTime::from_hms_opt(
-                u32::from(time >> 11),
-                u32::from((time >> 5) & 0x1F),
-                u32::from((time & 0x1F) * 2),
-            )?,
-        ))
-    }
 }
 
 /// See §7
