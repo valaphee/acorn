@@ -51,7 +51,7 @@ export var gdt: [7]Descriptor = .{ .{
     .s = true,
     .dpl = 0,
     .l = builtin.cpu.arch == .x86_64,
-    .db = builtin.cpu.arch == .x86,
+    .db = builtin.cpu.arch != .x86_64,
     .g = true,
 }, .{
     .p = true,
@@ -75,7 +75,7 @@ export var gdt: [7]Descriptor = .{ .{
     .s = true,
     .dpl = 3,
     .l = builtin.cpu.arch == .x86_64,
-    .db = builtin.cpu.arch == .x86,
+    .db = builtin.cpu.arch != .x86_64,
     .g = true,
 }, .{
     .p = true,

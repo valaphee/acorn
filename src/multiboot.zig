@@ -5,7 +5,7 @@
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
-//
+//*
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,9 +14,7 @@
 
 const c = @cImport(@cInclude("multiboot.h"));
 
-const machine = @import("machine.zig");
-
-export fn main(multibootMagic: u32, multibootInfoAddr: u32) callconv(.C) noreturn {
+pub export fn main(multibootMagic: u32, multibootInfoAddr: u32) callconv(.C) noreturn {
     if (multibootMagic != c.MULTIBOOT_BOOTLOADER_MAGIC) {}
 
     const multibootInfo: *const c.multiboot_info = @ptrFromInt(multibootInfoAddr);
@@ -27,11 +25,9 @@ export fn main(multibootMagic: u32, multibootInfoAddr: u32) callconv(.C) noretur
     while (multibootMmap.len != 0) {
         const multibootMmapEntry: *const c.multiboot_mmap_entry = @ptrCast(multibootMmap);
         switch (multibootMmapEntry.type) {
-            c.MULTIBOOT_MEMORY_AVAILABLE => machine.markMemoryFree(multibootMmapEntry.addr, multibootMmapEntry.len),
+            c.MULTIBOOT_MEMORY_AVAILABLE => {}, //multibootMmapEntry.addr, multibootMmapEntry.len
             else => {},
         }
         multibootMmap = multibootMmap[(@sizeOf(c.multiboot_uint32_t) + multibootMmapEntry.size)..];
     }
-
-    machine.run();
 }

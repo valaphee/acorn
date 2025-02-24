@@ -14,8 +14,6 @@
 
 const c = @cImport(@cInclude("Uefi.h"));
 
-const machine = @import("machine.zig");
-
 pub export fn EfiMain(ImageHandle: c.EFI_HANDLE, SystemTable: *c.EFI_SYSTEM_TABLE) callconv(.c) noreturn {
     const BootServices = SystemTable.BootServices.*;
 
@@ -36,10 +34,8 @@ pub export fn EfiMain(ImageHandle: c.EFI_HANDLE, SystemTable: *c.EFI_SYSTEM_TABL
     const MemoryMap = MemoryMapUnsized[0 .. MemoryMapSize / @sizeOf(c.EFI_MEMORY_DESCRIPTOR)];
     for (MemoryMap) |MemoryMapDescriptor| {
         switch (MemoryMapDescriptor.Type) {
-            c.EfiBootServicesCode | c.EfiBootServicesData | c.EfiConventionalMemory => machine.markMemoryFree(MemoryMapDescriptor.PhysicalStart, MemoryMapDescriptor.NumberOfPages * 4096),
+            c.EfiBootServicesCode | c.EfiBootServicesData | c.EfiConventionalMemory => {}, //MemoryMapDescriptor.PhysicalStart, MemoryMapDescriptor.NumberOfPages * PageSize
             else => {},
         }
     }
-
-    machine.run();
 }
