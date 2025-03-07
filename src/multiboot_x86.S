@@ -12,55 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-    .intel_syntax
-
     .section .init, "aw"
 
     .global _start
 _start:
     .code32
     // save multiboot args
-    mov edi, eax
-    mov esi, ebx
+    movl %eax, %edi
+    movl %ebx, %esi
 
     // enable PAE
-    mov eax, cr4
-    or  eax, 0x00000020 // CR4.PAE
-    mov cr4, eax
+    movl %cr4       , %eax
+    orl  $0x00000020, %eax  // CR4.PAE
+    movl %eax       , %cr4
 
     // enable paging
     // 0'000'000'0000 - 0'000'777'7777: 000'000'000'000'0000 - 000'000'000'777'7777
     // 3'000'000'0000 - 3'000'777'7777: 000'000'000'000'0000 - 000'000'000'777'7777
-    mov eax                    , offset ptl2 - 0xC0000000
-    mov dword ptr [eax + 0x000], 0x83
-    mov eax                    , offset ptl3 - 0xC0000000
-    mov dword ptr [eax + 0x000], offset ptl2 - 0xC0000000 + 0x3
-    mov dword ptr [eax + 0x018], offset ptl2 - 0xC0000000 + 0x3
-    mov cr3, eax
-    mov eax, cr0
-    or  eax, 0x80000000 // CR0.PG
-    mov cr0, eax
+    movl $ptl2 - 0xC0000000      , %eax
+    movl                    $0x83, 0x000(%eax)
+    movl $ptl3 - 0xC0000000      , %eax
+    movl $ptl2 - 0xC0000000 + 0x3, 0x000(%eax)
+    movl $ptl2 - 0xC0000000 + 0x3, 0x018(%eax)
+    movl %eax                   , %cr3
+
+    movl %cr0       , %eax
+    orl  $0x80000000, %eax // CR0.PG
+    movl %eax       , %cr0
 
     // update gdt
     lgdt gdtr
-    mov  ax, (2 << 3) // KDATA
-    mov  es, ax
-    mov  ss, ax
-    mov  ds, ax
-    mov  fs, ax
-    mov  gs, ax
-    //ljmp  (1 << 3), 1f
-    .byte 0xEA
-    .4byte 1f
-    .2byte (1 << 3) // KCODE
+    movw $2 << 3, %ax // KDATA
+    movw %ax    , %es
+    movw %ax    , %ss
+    movw %ax    , %ds
+    movw %ax    , %fs
+    movw %ax    , %gs
+    ljmp $1 << 3, $1f // KCODE
 
 1:  lidt idtr
 
     // call main with multiboot args
-    mov  esp, offset stack + 0x1000
-    push esi
-    push edi
-    call main
+    movl  $stackTop, %esp
+    pushl %esi
+    pushl %edi
+    call  main
 
 gdtr:
     .2byte (7 * 8) - 1
@@ -72,6 +68,10 @@ idtr:
     .section .bss
 
     .align 4096
+stack:
+    .zero 4096
+    .global stackTop
+stackTop:
 ptl2:
     .zero 4096
 ptl3:
